@@ -1,0 +1,10 @@
+The history of computers is a story of continuous innovation.
+Early computers were large, expensive, and difficult to operate.
+Modern computers are smaller, faster, and capable of solving complex problems.
+
+Artificial intelligence is a field of computer science concerned with creating systems
+that can perform tasks that normally require human intelligence.
+Machine learning allows computers to learn patterns from data.
+
+Python is a popular programming language used in automation, data analysis,
+machine learning, web development, and scientific computing.
