@@ -50,7 +50,7 @@ validation_data = data[split_index:]
 # 3. Hyperparameters
  
 batch_size = 4
-block_size = 16
+block_size = 64
 
 embedding_size = 32
 number_of_heads = 4
@@ -58,7 +58,7 @@ number_of_heads = 4
 number_of_layers = 2
 
 learning_rate = 0.001
-number_of_steps = 3000
+number_of_steps = 10000
 
 
  
@@ -412,14 +412,40 @@ class MiniGPT(nn.Module):
             )
 
             logits = logits[:, -1, :]
-
-            # Temperature controls randomness
+            
+            # Temperature
+            
             temperature = 0.6
-
             logits = logits / temperature
 
-            probabilities = F.softmax(
+            
+            # Top-k sampling
+
+            top_k = min(5, logits.size(-1))
+
+            # Keep only the top-k highest logits
+            top_values, top_indices = torch.topk(
                 logits,
+                top_k,
+                dim=-1
+            )
+
+            # Create a tensor filled with negative infinity
+            filtered_logits = torch.full_like(
+                logits,
+                float("-inf")
+            )
+
+            # Put the top-k logits back into their original positions
+            filtered_logits.scatter_(
+                1,
+                top_indices,
+                top_values
+            )
+
+            # Convert filtered logits into probabilities
+            probabilities = F.softmax(
+                filtered_logits,
                 dim=-1
             )
 
@@ -498,16 +524,19 @@ for step in range(number_of_steps):
  
 # 13. Final evaluation
  
-model.eval()
-
-with torch.no_grad():
-
-    xb, yb = get_batch("train")
-
-    logits, loss = model(xb, yb)
+final_losses = estimate_loss()
 
 print("\nTraining completed!")
-print("Final loss:", loss.item())
+
+print(
+    "Final training loss:",
+    round(final_losses["train"], 4)
+)
+
+print(
+    "Final validation loss:",
+    round(final_losses["validation"], 4)
+)
 
 
  
