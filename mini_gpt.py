@@ -545,6 +545,8 @@ if best_model_state is not None:
     model.load_state_dict(best_model_state)
     model.to(device)
 
+final_losses = estimate_loss()
+
 print("Best validation loss during training:", best_validation_loss)
 print("Final evaluation loss:", final_losses["validation"])
 
@@ -562,10 +564,6 @@ torch.save(
     "mini_gpt_astronomy.pt"
 )
  
-# 13. Final evaluation
- 
-final_losses = estimate_loss()
-
 print("\nTraining completed!")
 
 print(
