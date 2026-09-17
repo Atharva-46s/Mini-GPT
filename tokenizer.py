@@ -1,31 +1,34 @@
-import torch
+"""A deliberately simple character tokenizer for this educational project."""
 
-# Open and read the training text
-with open("data/input.txt", "r", encoding="utf-8") as file:
-    text = file.read()
 
-# Get every unique character in the text
-characters = sorted(list(set(text)))
+class CharacterTokenizer:
+    def __init__(self, characters):
+        self.characters = list(characters)
+        self.char_to_int = {character: index for index, character in enumerate(self.characters)}
+        self.int_to_char = {index: character for index, character in enumerate(self.characters)}
 
-# Number of unique characters
-vocab_size = len(characters)
+    @classmethod
+    def from_text(cls, text):
+        return cls(sorted(set(text)))
 
-print("Total characters in dataset:", len(text))
-print("Unique characters:", vocab_size)
-print("Characters:", characters)
+    @property
+    def vocab_size(self):
+        return len(self.characters)
 
-# Create mappings from character to integer and integer to character
-char_to_int = {character: index for index, character in enumerate(characters)}
-int_to_char = {index: character for index, character in enumerate(characters)}
+    def encode(self, text, skip_unknown=False):
+        if skip_unknown:
+            return [self.char_to_int[c] for c in text if c in self.char_to_int]
+        unknown = [c for c in text if c not in self.char_to_int]
+        if unknown:
+            raise ValueError(f"Prompt contains characters outside the vocabulary: {unknown[:5]!r}")
+        return [self.char_to_int[c] for c in text]
 
-# Convert the complete text into integers
-encoded_text = [char_to_int[character] for character in text]
+    def decode(self, token_ids):
+        return "".join(self.int_to_char[int(token)] for token in token_ids)
 
-# Convert the list into a PyTorch tensor
-data = torch.tensor(encoded_text, dtype=torch.long)
+    def state_dict(self):
+        return {"characters": self.characters}
 
-print("First 50 characters:")
-print(text[:50])
-
-print("\nFirst 50 encoded numbers:")
-print(data[:50])
+    @classmethod
+    def from_state_dict(cls, state):
+        return cls(state["characters"])

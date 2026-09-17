@@ -10,7 +10,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 print("Using device:", device)
 
-
  
 # 2. Load dataset
  
@@ -50,15 +49,15 @@ validation_data = data[split_index:]
 # 3. Hyperparameters
  
 batch_size = 4
-block_size = 64
+block_size = 128
 
-embedding_size = 32
+embedding_size = 64
 number_of_heads = 4
 
-number_of_layers = 2
+number_of_layers = 4
 
 learning_rate = 0.001
-number_of_steps = 10000
+number_of_steps = 20000
 
 
  
@@ -355,10 +354,7 @@ class MiniGPT(nn.Module):
         )
 
         # Position IDs
-        positions = torch.arange(
-            T,
-            device=device
-        )
+        positions = torch.arange(T, device=index.device)
 
         # Positional embeddings
         position_embeddings = self.position_embedding_table(
@@ -415,7 +411,7 @@ class MiniGPT(nn.Module):
             
             # Temperature
             
-            temperature = 0.6
+            temperature = 0.7
             logits = logits / temperature
 
             
@@ -484,7 +480,14 @@ print("Total parameters:", total_parameters)
  
 optimizer = torch.optim.AdamW(
     model.parameters(),
-    lr=learning_rate
+    lr=learning_rate,
+    weight_decay=0.01
+)
+
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optimizer,
+    T_max=number_of_steps,
+    eta_min=learning_rate * 0.1
 )
 
 
@@ -492,6 +495,9 @@ optimizer = torch.optim.AdamW(
 # 12. Training
  
 model.train()
+
+best_validation_loss = float("inf")
+best_model_state = None
 
 for step in range(number_of_steps):
 
@@ -506,6 +512,14 @@ for step in range(number_of_steps):
             f"Validation loss: {losses['validation']:.4f}"
         )
 
+        if losses["validation"] < best_validation_loss:
+            best_validation_loss = losses["validation"]
+
+            best_model_state = {
+                key: value.detach().cpu().clone()
+                for key, value in model.state_dict().items()
+            }
+
     # Get training batch
     xb, yb = get_batch("train")
 
@@ -518,9 +532,35 @@ for step in range(number_of_steps):
     # Backpropagation
     loss.backward()
 
+    torch.nn.utils.clip_grad_norm_(
+    model.parameters(),
+    max_norm=1.0
+    )
+
     # Update model parameters
     optimizer.step()
+    scheduler.step()
 
+if best_model_state is not None:
+    model.load_state_dict(best_model_state)
+    model.to(device)
+
+print("Best validation loss during training:", best_validation_loss)
+print("Final evaluation loss:", final_losses["validation"])
+
+torch.save(
+    {
+        "model_state_dict": model.state_dict(),
+        "char_to_int": char_to_int,
+        "int_to_char": int_to_char,
+        "vocab_size": vocab_size,
+        "embedding_size": embedding_size,
+        "number_of_heads": number_of_heads,
+        "number_of_layers": number_of_layers,
+        "block_size": block_size,
+    },
+    "mini_gpt_astronomy.pt"
+)
  
 # 13. Final evaluation
  
@@ -561,6 +601,14 @@ context = torch.tensor(
     dtype=torch.long,
     device=device
 )
+
+model.eval()
+
+with torch.no_grad():
+    generated_tokens = model.generate(
+        context,
+        max_new_tokens=300
+    )
 
 with torch.no_grad():
 
